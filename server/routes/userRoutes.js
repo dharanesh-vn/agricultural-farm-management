@@ -1,12 +1,20 @@
 const express = require('express');
 const router = express.Router();
-// This import must be correct
-const { registerUser, loginUser } = require('../controllers/userController');
+const { protect } = require('../middleware/auth');
+const { authorize } = require('../middleware/role');
+const {
+  getUserProfile,
+  updateUserProfile,
+  getBuyers
+} = require('../controllers/userController');
 
-// Defines the '/register' part of the URL
-router.post('/register', registerUser);
+// Defines GET /api/users/profile and PUT /api/users/profile
+router.route('/profile')
+  .get(protect, getUserProfile)
+  .put(protect, updateUserProfile);
 
-// Defines the '/login' part of the URL
-router.post('/login', loginUser); // <-- IS THIS LINE HERE?
+// Defines GET /api/users/buyers, only accessible by farmers
+router.route('/buyers')
+  .get(protect, authorize('farmer'), getBuyers);
 
-module.exports = router; // <-- IS THIS LINE HERE?
+module.exports = router;

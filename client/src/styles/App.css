@@ -1,0 +1,12 @@
+/* Filename: src/styles/App.css */
+.app-container {
+  display: flex;
+  background-color: #f4f7fc; /* A light, clean background color */
+  min-height: 100vh;
+}
+
+.content-area {
+  flex-grow: 1; /* Takes up the remaining space */
+  padding: 2rem;
+  overflow-y: auto; /* Allows scrolling if content is long */
+}

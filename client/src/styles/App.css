@@ -1,12 +1,27 @@
-/* Filename: src/styles/App.css */
-.app-container {
+/* --- Redesigned App Layout --- */
+.app-layout-redesigned {
   display: flex;
-  background-color: #f4f7fc; /* A light, clean background color */
-  min-height: 100vh;
+}
+
+.main-content-wrapper {
+  flex-grow: 1;
+  margin-left: 260px; /* Same width as the new sidebar */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
 .content-area {
-  flex-grow: 1; /* Takes up the remaining space */
-  padding: 2rem;
-  overflow-y: auto; /* Allows scrolling if content is long */
+  flex-grow: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto; /* This makes only the content area scrollable */
+  background-color: #f1f5f9; /* Light gray background */
+}
+
+/* Ensure body has no margin */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
 }

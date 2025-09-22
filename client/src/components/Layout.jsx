@@ -1,19 +1,17 @@
-// Filename: src/components/Layout.jsx
-
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
-import { Header } from './Header'; // Import the new Header
-import '../styles/App.css';
+import { Header } from './Header';
+import '../styles/App.css'; // Will be updated
 
 export const Layout = () => {
   return (
-    <div className="app-container">
+    <div className="app-layout-redesigned">
       <Sidebar />
-      <div className="content-area">
-        <Header /> {/* Add the Header here */}
-        <main>
-          <Outlet /> {/* Child routes will render here */}
+      <div className="main-content-wrapper">
+        <Header />
+        <main className="content-area">
+          <Outlet /> {/* Child routes will render and scroll here */}
         </main>
       </div>
     </div>

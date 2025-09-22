@@ -2,45 +2,41 @@ const Contract = require('../models/Contract');
 
 const getMyContracts = async (req, res, next) => {
   try {
-    const contracts = await Contract.find({ $or: [{ farmer: req.user._id }, { buyer: req.user._id }] })
+    const contracts = await Contract.find({ $or: [{ farmer: req.user.id }, { buyer: req.user.id }] })
       .populate('farmer', 'name').populate('buyer', 'name').sort({ updatedAt: -1 });
     res.json(contracts);
   } catch (error) { next(error); }
 };
 
-const getContractById = async (req, res, next) => {
-  try {
-    const contract = await Contract.findById(req.params.id).populate('farmer', 'name email').populate('buyer', 'name email');
-    if (!contract) { res.status(404); throw new Error('Contract not found'); }
-    if (contract.farmer._id.toString() !== req.user._id.toString() && contract.buyer._id.toString() !== req.user._id.toString()) {
-      res.status(403); throw new Error('User not authorized to view this contract');
-    }
-    res.json(contract);
-  } catch (error) { next(error); }
-};
-
 const updateContractStatus = async (req, res, next) => {
-  try {
-    const { status: newStatus } = req.body;
-    const contract = await Contract.findById(req.params.id);
-    if (!contract) { res.status(404); throw new Error('Contract not found'); }
+    try {
+        const { status } = req.body;
+        const contract = await Contract.findById(req.params.id);
 
-    const isFarmer = contract.farmer.toString() === req.user._id.toString();
-    const isBuyer = contract.buyer.toString() === req.user._id.toString();
-    if (!isFarmer && !isBuyer) { res.status(403); throw new Error('Not authorized to update'); }
+        if (!contract) { throw new Error('Contract not found'); }
 
-    const validTransitions = { pending: 'awaiting_shipment', awaiting_shipment: 'shipped', shipped: 'completed' };
-    const rolePermissions = { pending: 'buyer', awaiting_shipment: 'farmer', shipped: 'buyer' };
-    
-    if (validTransitions[contract.status] !== newStatus || rolePermissions[contract.status] !== req.user.role) {
-      res.status(400); throw new Error('Invalid status transition for your role.');
-    }
+        const userRole = req.user.role;
+        const userId = req.user.id;
+        let canUpdate = false;
 
-    contract.status = newStatus;
-    await contract.save();
-    const updatedContract = await Contract.findById(contract._id).populate('farmer', 'name email').populate('buyer', 'name email');
-    res.json(updatedContract);
-  } catch (error) { next(error); }
+        // Define who can make which status change
+        if (status === 'shipped' && userRole === 'farmer' && contract.farmer.toString() === userId) {
+            canUpdate = true;
+        }
+        if (status === 'completed' && userRole === 'buyer' && contract.buyer.toString() === userId) {
+            canUpdate = true;
+        }
+
+        if (!canUpdate) {
+            res.status(403);
+            throw new Error('You are not authorized to make this status update.');
+        }
+
+        contract.status = status;
+        await contract.save();
+        res.json(contract);
+
+    } catch (error) { next(error); }
 };
 
-module.exports = { getMyContracts, getContractById, updateContractStatus };
+module.exports = { getMyContracts, updateContractStatus };

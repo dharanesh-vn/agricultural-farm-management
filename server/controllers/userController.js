@@ -2,6 +2,7 @@ const User = require('../models/User');
 
 const getUserProfile = async (req, res, next) => {
   try {
+    // req.user is attached by the 'protect' middleware
     const user = await User.findById(req.user.id).select('-password');
     if (user) {
       res.json(user);
@@ -21,7 +22,7 @@ const updateUserProfile = async (req, res, next) => {
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
       if (req.body.password) {
-        user.password = req.body.password;
+        user.password = req.body.password; // The 'pre-save' hook will hash it
       }
       const updatedUser = await user.save();
       res.json({
@@ -39,6 +40,7 @@ const updateUserProfile = async (req, res, next) => {
   }
 };
 
+// --- THIS FUNCTION WAS MISSING ---
 const getBuyers = async (req, res, next) => {
     try {
       const buyers = await User.find({ role: 'buyer' }).select('_id name');
@@ -47,5 +49,12 @@ const getBuyers = async (req, res, next) => {
       next(error);
     }
 };
+// --- END OF FIX ---
 
-module.exports = { getUserProfile, updateUserProfile, getBuyers };
+
+// --- MAKE SURE ALL FUNCTIONS ARE EXPORTED ---
+module.exports = { 
+    getUserProfile, 
+    updateUserProfile, 
+    getBuyers 
+};

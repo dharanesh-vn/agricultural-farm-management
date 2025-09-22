@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const { errorHandler } = require('./middleware/errorHandler');
-const connectDB = require('./config/db');
-
 // Route imports
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -13,17 +11,11 @@ const adminRoutes = require('./routes/adminRoutes');
 const weatherRoutes = require('./routes/weatherRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
-const inventoryRoutes = require('./routes/inventoryRoutes'); // <-- IMPORT NEW ROUTE
-
-// Initialize app
+const inventoryRoutes = require('./routes/inventoryRoutes');
 const app = express();
-connectDB();
-
-// Middleware
 app.use(cors());
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
-
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -34,9 +26,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use('/api/inventory', inventoryRoutes); // <-- REGISTER NEW ROUTE
-
+app.use('/api/inventory', inventoryRoutes);
 // Error Handler
 app.use(errorHandler);
-
 module.exports = app;

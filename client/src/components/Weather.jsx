@@ -1,15 +1,27 @@
-// Filename: src/components/Weather.jsx
-
-import React from 'react';
-import { useFetch } from '../hooks/useFetch';
+import React, { useState, useEffect } from 'react';
 import { Card } from './Card';
+// --- FIX: Removed unused 'API' import ---
 import '../styles/Dashboard.css';
 
 export const Weather = () => {
-  const { data: weather, loading, error } = useFetch('/api/weather');
+  const [weather, setWeather] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setTimeout(() => {
+      const mockWeather = {
+          current: { temp: 28, condition: 'Sunny', humidity: '65%', wind: '10 km/h' },
+          forecast: [
+            { day: 'Tomorrow', temp: 26, condition: 'Light Rain' },
+            { day: 'Friday', temp: 29, condition: 'Partly Cloudy' },
+          ]
+      };
+      setWeather(mockWeather);
+      setLoading(false);
+    }, 500);
+  }, []);
 
   if (loading) return <p>Loading weather data...</p>;
-  if (error) return <p>Error loading weather data: {error}</p>;
 
   return (
     <div>

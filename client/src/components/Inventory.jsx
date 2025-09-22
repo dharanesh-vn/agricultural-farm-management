@@ -1,15 +1,25 @@
-// Filename: src/components/Inventory.jsx
-
-import React from 'react';
-import { useFetch } from '../hooks/useFetch';
+import React, { useState, useEffect } from 'react';
 import { Card } from './Card';
-import '../styles/Inventory.css'; // New styles for the table
+// --- FIX: Removed unused 'API' import ---
+import '../styles/Inventory.css';
 
 export const Inventory = () => {
-  const { data: inventory, loading, error } = useFetch('/api/inventory');
+  const [inventory, setInventory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setTimeout(() => {
+      const mockInventory = [
+        { id: 101, name: 'Urea Fertilizer', quantity: 50, unit: 'bags' },
+        { id: 102, name: 'Pesticide Type B', quantity: 25, unit: 'liters' },
+        { id: 103, name: 'Corn Seeds', quantity: 150, unit: 'kg' },
+      ];
+      setInventory(mockInventory);
+      setLoading(false);
+    }, 500);
+  }, []);
 
   if (loading) return <p>Loading inventory...</p>;
-  if (error) return <p>Error loading inventory: {error}</p>;
 
   return (
     <div>

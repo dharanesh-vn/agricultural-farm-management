@@ -1,111 +1,94 @@
-// Filename: server/server.js
+const dotenv = require('dotenv');
+dotenv.config();
 
-const express = require('express');
-const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
+const app = require('./app');
+const connectDB = require('./config/db');
+const Auction = require('./models/Auction');
+const Contract = require('./models/Contract');
 
-const app = express();
-const PORT = 5000;
+connectDB();
 
-// --- 1. MOCK DATABASE INITIALIZATION ---
-// In a real application, your database connection logic would go here.
-// For now, we'll just define our data.
-
-let mockAuctions = [
-  { id: 1, item: 'Organic Wheat (1 Ton)', currentBid: 300, bidder: 'FarmCo', timeLeft: '12h 30m' },
-  { id: 2, item: 'Fresh Corn (500kg)', currentBid: 150, bidder: 'FreshFoods', timeLeft: '2d 4h' },
-  { id: 3, item: 'Soybeans (2 Tons)', currentBid: 450, bidder: 'AgriCorp', timeLeft: '1d 8h' },
-];
-
-const mockWeather = {
-  current: { temp: 28, condition: 'Sunny', humidity: '65%', wind: '10 km/h' },
-  forecast: [
-    { day: 'Tomorrow', temp: 26, condition: 'Light Rain' },
-    { day: 'Friday', temp: 29, condition: 'Partly Cloudy' },
-  ]
-};
-
-const mockInventory = [
-  { id: 101, name: 'Fertilizer Type A', quantity: 50, unit: 'bags' },
-  { id: 102, name: 'Pesticide X', quantity: 25, unit: 'liters' },
-  { id: 103, name: 'Tractor Seeds', quantity: 120, unit: 'kg' },
-  { id: 104, name: 'Tractor Fuel', quantity: 500, unit: 'liters' },
-];
-
-// Log that the "database" is ready
-console.log('[INFO] Mock Database Initialized Successfully.');
-
-// --- 2. MIDDLEWARE SETUP ---
-
-// Standard middleware
-app.use(cors());
-app.use(express.json());
-
-// Custom Logger Middleware: This will run for EVERY request and log it.
-app.use((req, res, next) => {
-  console.log(`[REQUEST] ${req.method} ${req.originalUrl}`);
-  next(); // This passes control to the next middleware or route handler
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: process.env.CLIENT_URL || "http://localhost:3000" },
 });
 
-console.log('[INFO] Middleware configured.');
+const auctionTimers = {};
 
-// --- 3. API ENDPOINTS ---
+io.on('connection', (socket) => {
+    console.log('✅ User connected via Socket.io:', socket.id);
 
-// Dashboard Data
-app.get('/api/dashboard', (req, res) => {
-  res.json({
-    cropStatus: [
-      { name: 'Wheat', status: 'Growing (75% maturity)' },
-      { name: 'Corn', status: 'Harvesting Soon (Scheduled for next week)' },
-      { name: 'Soybeans', status: 'Planting Phase' },
-    ],
-    alerts: [
-      'Low moisture detected in Sector A.',
-      'Tractor #3 maintenance is due.',
-      'Pest activity reported near Sector C.',
-    ],
-  });
+    socket.on('joinAuction', (auctionId) => socket.join(auctionId));
+    socket.on('leaveAuction', (auctionId) => socket.leave(auctionId));
+
+    socket.on('startAuction', async (data) => {
+        try {
+            const newAuction = new Auction({
+                seller: data.sellerId,
+                sellerName: data.sellerName,
+                itemName: data.itemName,
+                quantity: data.quantity,
+                startingBid: data.startingBid,
+                currentBid: data.startingBid,
+                minIncrement: data.minIncrement,
+                startTime: new Date(),
+                endTime: new Date(new Date().getTime() + data.duration * 60000),
+            });
+            const savedAuction = await newAuction.save();
+            io.emit('auctionStarted', savedAuction);
+
+            auctionTimers[savedAuction._id] = setTimeout(async () => {
+                const endedAuction = await Auction.findById(savedAuction._id);
+                if (endedAuction && endedAuction.status === 'active') {
+                    endedAuction.status = 'ended';
+                    if (endedAuction.highestBidder) {
+                        endedAuction.winner = endedAuction.highestBidder;
+                        await Contract.create({
+                            farmer: endedAuction.seller,
+                            buyer: endedAuction.winner,
+                            produce: endedAuction.itemName,
+                            quantity: parseFloat(endedAuction.quantity.split(' ')[0]) || 1,
+                            price: endedAuction.currentBid,
+                        });
+                    }
+                    await endedAuction.save();
+                    io.to(endedAuction._id.toString()).emit('auctionEnded', endedAuction);
+                    console.log(`Auction ${endedAuction._id} has ended.`);
+                }
+            }, data.duration * 60000);
+        } catch (error) { console.error('Error starting auction:', error); }
+    });
+
+    socket.on('placeBid', async ({ auctionId, bidAmount, bidderId, bidderName }) => {
+        try {
+            const auction = await Auction.findById(auctionId);
+            const minNextBid = auction.currentBid + auction.minIncrement;
+
+            if (auction.status !== 'active') {
+                return socket.emit('auctionError', { message: "This auction has already ended." });
+            }
+            if (bidAmount < minNextBid) {
+                return socket.emit('auctionError', { message: `Your bid is too low. Minimum next bid is ₹${minNextBid}.` });
+            }
+            
+            const updatedAuction = await Auction.findByIdAndUpdate(
+                auctionId,
+                { currentBid: bidAmount, highestBidder: bidderId, highestBidderName: bidderName },
+                { new: true }
+            );
+            io.to(auctionId).emit('newBidUpdate', updatedAuction);
+        } catch (error) { 
+            console.error('Error placing bid:', error);
+            socket.emit('auctionError', { message: "A server error occurred." });
+        }
+    });
+
+    socket.on('disconnect', () => { console.log('❌ User disconnected:', socket.id); });
 });
 
-// Auctions Data
-app.get('/api/auctions', (req, res) => {
-  res.json(mockAuctions);
-});
+app.set('socketio', io);
 
-// Handle a new bid on an auction
-app.post('/api/auctions/:id/bid', (req, res) => {
-  const { id } = req.params;
-  const { bidAmount, bidderName } = req.body;
-  
-  const auction = mockAuctions.find(a => a.id == id);
-  
-  if (auction && bidAmount > auction.currentBid) {
-    auction.currentBid = bidAmount;
-    auction.bidder = bidderName;
-    console.log(`[SUCCESS] New bid of $${bidAmount} placed on auction #${id}`);
-    res.json(auction);
-  } else {
-    console.log(`[ERROR] Failed bid on auction #${id}. Bid amount was too low.`);
-    res.status(400).json({ message: 'Bid must be higher than the current bid.' });
-  }
-});
-
-// Weather Data
-app.get('/api/weather', (req, res) => {
-  res.json(mockWeather);
-});
-
-// Inventory Data
-app.get('/api/inventory', (req, res) => {
-  res.json(mockInventory);
-});
-
-console.log('[INFO] API Endpoints defined.');
-
-// --- 4. START THE SERVER ---
-
-app.listen(PORT, () => {
-  console.log('-------------------------------------------');
-  console.log(`[SUCCESS] Server is running and listening on http://localhost:${PORT}`);
-  console.log('API Endpoints are now available for the client.');
-  console.log('-------------------------------------------');
-});
+const PORT = process.env.PORT || 5001;
+server.listen(PORT, () => console.log(`🚀 Server is running on port ${PORT}`));

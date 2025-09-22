@@ -1,16 +1,32 @@
-// Filename: src/components/Dashboard.jsx
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from './Card';
-import { useFetch } from '../hooks/useFetch'; // Import our custom hook
+import API from '../api/api';
 import '../styles/Dashboard.css';
 
 export const Dashboard = () => {
-  // Fetch data from the backend using the hook
-  const { data, loading, error } = useFetch('/api/dashboard');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await API.get('/dashboard');
+        // The backend `dashboardController` provides `actionItems`
+        setData({
+          alerts: response.data.actionItems.map(item => item.text)
+        });
+      } catch (err) {
+        setError('Could not fetch dashboard data. Please log in.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
 
   if (loading) return <p>Loading dashboard data...</p>;
-  if (error) return <p>Error loading data: {error}</p>;
+  if (error) return <p>Error: {error}</p>;
 
   return (
     <div>
@@ -18,23 +34,21 @@ export const Dashboard = () => {
         <h1>Dashboard</h1>
         <p>Welcome to your Agricultural Farm Management panel.</p>
       </header>
-
       <div className="dashboard-grid">
-        <Card title="Crop Status">
-          {data?.cropStatus.map((crop, index) => (
-            <p key={index}><strong>{crop.name}:</strong> {crop.status}</p>
-          ))}
+        <Card title="Action Required">
+          {data?.alerts && data.alerts.length > 0 ? (
+            <ul>
+              {data.alerts.map((alert, index) => <li key={index}>{alert}</li>)}
+            </ul>
+          ) : (
+            <p>No pending actions. You're all caught up!</p>
+          )}
         </Card>
-
-        <Card title="Recent Alerts">
-          <ul>
-            {data?.alerts.map((alert, index) => <li key={index}>{alert}</li>)}
-          </ul>
+        <Card title="Recent Sales / Wins">
+          <p>Completed transactions will appear here.</p>
         </Card>
-        
-        {/* These can be converted to fetch from the API later */}
         <Card title="Weather Forecast"><p>See Weather Page</p></Card>
-        <Card title="Equipment Status"><p>See Inventory Page</p></Card>
+        <Card title="My Inventory"><p>See Inventory Page</p></Card>
       </div>
     </div>
   );

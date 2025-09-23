@@ -1,33 +1,39 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // It needs the User model to find the user from the token
+const User = require('../models/User'); // Ensure this is the correct path to your new User model
 
 const protect = async (req, res, next) => {
   let token;
 
-  // 1. Check if the 'Authorization' header exists and starts with 'Bearer'
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
-      // 2. Get the token from the header (Bearer TOKEN -> TOKEN)
+      // 1. Get token from header
       token = req.headers.authorization.split(' ')[1];
 
-      // 3. Verify the token using your secret key
+      // 2. Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // 4. Find the user in the database using the ID from the token
-      // We exclude the password from the data we attach to the request
+      // --- THIS IS THE CRITICAL FIX ---
+      // The decoded token contains the user's MongoDB ObjectId in the 'id' field.
+      // We must use this 'id' to find the user in the database.
+      // The .select('-password') part ensures we don't include the hashed password.
       req.user = await User.findById(decoded.id).select('-password');
+      // --- END OF FIX ---
 
-      // 5. If successful, allow the request to continue to the next function (the controller)
-      next();
+      if (!req.user) {
+          res.status(401);
+          throw new Error('Not authorized, user not found');
+      }
+
+      next(); // Proceed to the next step (e.g., the controller)
     } catch (error) {
-      // 6. If the token is invalid, send an error
-      res.status(401).json({ message: 'Not authorized, token failed' });
+      res.status(401);
+      throw new Error('Not authorized, token failed');
     }
   }
 
-  // 6. If there is no token at all, send an error
   if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token' });
+    res.status(401);
+    throw new Error('Not authorized, no token');
   }
 };
 

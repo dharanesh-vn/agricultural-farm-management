@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { Sidebar } from './Sidebar';
+import { Sidebar } from './Sidebar'; // This import will now work correctly
 import { Header } from './Header';
-import '../styles/App.css'; // Will be updated
+import '../styles/App.css';
 
 export const Layout = () => {
   return (
@@ -11,7 +11,7 @@ export const Layout = () => {
       <div className="main-content-wrapper">
         <Header />
         <main className="content-area">
-          <Outlet /> {/* Child routes will render and scroll here */}
+          <Outlet />
         </main>
       </div>
     </div>

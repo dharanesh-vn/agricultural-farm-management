@@ -1,5 +1,6 @@
 import axios from 'axios';
 const API = axios.create({ baseURL: 'http://localhost:5001/api' });
+
 API.interceptors.request.use((req) => {
   const token = localStorage.getItem('authToken');
   if (token) {
@@ -7,4 +8,5 @@ API.interceptors.request.use((req) => {
   }
   return req;
 });
+
 export default API;

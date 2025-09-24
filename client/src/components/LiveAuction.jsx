@@ -1,14 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from './Card';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useSocket } from '../context/AuthContext';
 import API from '../api/api';
-import io from 'socket.io-client';
 import '../styles/Dashboard.css';
 import '../styles/LiveAuction.css';
 import '../styles/Modal.css';
 
-const socket = io('http://localhost:5001');
-
+// --- Re-usable Timer Component (Stable & Verified) ---
 const Timer = ({ endTime, status }) => {
     const [timeLeft, setTimeLeft] = useState(Math.round((new Date(endTime) - new Date()) / 1000));
     useEffect(() => {
@@ -25,46 +23,103 @@ const Timer = ({ endTime, status }) => {
     return <span className="timer-active">{minutes}:{seconds < 10 ? `0${seconds}` : seconds}</span>;
 };
 
+// --- Re-usable Modal Component (CRITICAL DATA SYNC FIX) ---
+const StartAuctionModal = ({ onClose, onStartAuction }) => {
+    const [data, setData] = useState({ itemName: '', quantity: '', startingBid: '', minIncrement: '10', duration: '5' });
+    const handleChange = e => setData({...data, [e.target.name]: e.target.value});
+    
+    const handleSubmit = () => {
+        const { itemName, quantity, startingBid, minIncrement, duration } = data;
+        if (!itemName.trim() || !quantity.trim() || !startingBid || !minIncrement || !duration) {
+            return alert('Please fill all fields.');
+        }
+
+        const confirmationMessage = `Are you sure you want to start this auction?\n\nProduce: ${itemName}\nQuantity: ${quantity}\nStarting Bid: ₹${startingBid}`;
+        if (window.confirm(confirmationMessage)) {
+            // This object's keys now perfectly match the backend 'startAuction' handler
+            onStartAuction({
+                itemName: itemName.trim(),
+                quantity: quantity.trim(),
+                startingBid: Number(startingBid),
+                minIncrement: Number(minIncrement),
+                duration: Number(duration)
+            });
+        }
+    };
+
+    return (
+        <div className="modal-backdrop">
+            <div className="modal-content">
+                <h2>Start New Auction</h2>
+                {/* The 'name' attribute of each input must match a key in the state object */}
+                <input name="itemName" value={data.itemName} placeholder="Produce Name" onChange={handleChange} />
+                <input name="quantity" value={data.quantity} placeholder="Quantity (e.g., 50 kg)" onChange={handleChange} />
+                <input name="startingBid" value={data.startingBid} type="number" placeholder="Starting Bid (₹)" onChange={handleChange} />
+                <input name="minIncrement" value={data.minIncrement} type="number" placeholder="Min. Bid Increment (₹)" onChange={handleChange} />
+                <label>Duration (minutes)</label>
+                <input name="duration" type="number" value={data.duration} onChange={handleChange} />
+                <div className="modal-actions">
+                    <button onClick={onClose} className="btn-secondary">Cancel</button>
+                    <button onClick={handleSubmit} className="btn-primary">Confirm & Start</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- Main LiveAuction Component (Final, Stable Version) ---
 export const LiveAuction = () => {
   const { user } = useAuth();
+  const socket = useSocket();
   const [auctions, setAuctions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const fetchAuctions = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await API.get('/marketplace');
+      setAuctions(data);
+      setError('');
+    } catch (err) {
+      setError('Could not fetch auctions. Is the server running?');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchAuctions = async () => {
-      try {
-        const { data } = await API.get('/marketplace');
-        setAuctions(data);
-      } catch (err) {
-        setError('Could not fetch auctions.');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchAuctions();
 
-    socket.on('auctionStarted', (newAuction) => setAuctions(prev => [newAuction, ...prev]));
-    socket.on('newBidUpdate', (updatedAuction) => setAuctions(prev => prev.map(a => a._id === updatedAuction._id ? updatedAuction : a)));
-    socket.on('auctionEnded', (endedAuction) => {
-      alert(`Auction for ${endedAuction.itemName} has ended!`);
-      setAuctions(prev => prev.map(a => a._id === endedAuction._id ? { ...a, status: 'ended' } : a));
-    });
-    socket.on('auctionError', (error) => alert(`Error: ${error.message}`));
+    const handleAuctionStarted = (newAuction) => setAuctions(prev => [newAuction, ...prev]);
+    const handleNewBid = (updatedAuction) => setAuctions(prev => prev.map(a => a._id === updatedAuction._id ? updatedAuction : a));
+    const handleAuctionEnded = (endedAuction) => {
+        alert(`Auction for ${endedAuction.itemName} has ended!`);
+        setAuctions(prev => prev.map(a => a._id === endedAuction._id ? { ...a, status: 'ended' } : a));
+    };
+    const handleAuctionError = (error) => alert(`Auction Error: ${error.message}`);
+
+    socket.on('auctionStarted', handleAuctionStarted);
+    socket.on('newBidUpdate', handleNewBid);
+    socket.on('auctionEnded', handleAuctionEnded);
+    socket.on('auctionError', handleAuctionError);
 
     return () => {
-      socket.off('auctionStarted');
-      socket.off('newBidUpdate');
-      socket.off('auctionEnded');
-      socket.off('auctionError');
+      socket.off('auctionStarted', handleAuctionStarted);
+      socket.off('newBidUpdate', handleNewBid);
+      socket.off('auctionEnded', handleAuctionEnded);
+      socket.off('auctionError', handleAuctionError);
     };
-  }, []);
+  }, [fetchAuctions, socket]);
   
   useEffect(() => {
     auctions.forEach(auction => socket.emit('joinAuction', auction._id));
-    return () => auctions.forEach(auction => socket.emit('leaveAuction', auction._id));
-  }, [auctions]);
+    return () => {
+      auctions.forEach(auction => socket.emit('leaveAuction', auction._id));
+    };
+  }, [auctions, socket]);
 
   const handleStartAuction = (auctionData) => {
     socket.emit('startAuction', { ...auctionData, sellerId: user._id, sellerName: user.name });
@@ -73,7 +128,7 @@ export const LiveAuction = () => {
 
   const handleBid = (auction, currentBid, minIncrement) => {
     const minNextBid = currentBid + minIncrement;
-    const bidAmount = prompt(`Current bid is ₹${currentBid}. Minimum next bid is ₹${minNextBid}.\nEnter your bid:`);
+    const bidAmount = prompt(`Current bid is ₹${currentBid}. Min next bid is ₹${minNextBid}.\nEnter your bid:`);
     if (bidAmount && !isNaN(bidAmount) && parseFloat(bidAmount) >= minNextBid) {
       socket.emit('placeBid', { auctionId: auction._id, bidAmount: parseFloat(bidAmount), bidderId: user._id, bidderName: user.name });
     } else {
@@ -81,10 +136,9 @@ export const LiveAuction = () => {
     }
   };
 
-  if (loading) return <p>Loading live auctions...</p>;
-  if (error) return <p className="error-message">{error}</p>;
-
   const formatDate = (dateString) => new Date(dateString).toLocaleString();
+
+  if (loading) return <p style={{ padding: '2rem' }}>Loading live auctions...</p>;
 
   return (
     <div>
@@ -94,8 +148,9 @@ export const LiveAuction = () => {
           <button className="start-auction-btn" onClick={() => setIsModalOpen(true)}>+ Start New Auction</button>
         )}
       </header>
+      {error && <p className="error-message">{error}</p>}
       <div className="auction-grid-redesigned">
-        {auctions.length > 0 ? (
+        {!loading && auctions.length > 0 ? (
           auctions.map(auction => {
             const isAuctionActive = auction.status === 'active' && new Date(auction.endTime) > new Date();
             return (
@@ -106,54 +161,20 @@ export const LiveAuction = () => {
                   <div className="info-row"><span>Highest Bidder</span><span>{auction.highestBidderName || 'No bids yet'}</span></div>
                   <div className="current-bid-row"><span>Current Bid</span><span className="current-bid-price">₹{auction.currentBid}</span></div>
                   <div className="timer-row"><span>Time Left</span><Timer endTime={auction.endTime} status={auction.status} /></div>
-                  <div className="date-info-row">
-                    <span>Started: {formatDate(auction.startTime)}</span>
-                    <span>Ends: {formatDate(auction.endTime)}</span>
-                  </div>
+                  <div className="date-info-row"><span>Started: {formatDate(auction.startTime)}</span><span>Ends: {formatDate(auction.endTime)}</span></div>
                 </div>
                 <div className="auction-card-footer">
                   {user?.role === 'buyer' && user._id !== auction.seller && isAuctionActive && (
                     <button className="bid-button-redesigned" onClick={() => handleBid(auction, auction.currentBid, auction.minIncrement)}>Place Bid</button>
                   )}
-                  {auction.status === 'ended' && (<p className="ended-message">This auction has ended.</p>)}
+                  {!isAuctionActive && (<p className="ended-message">This auction has ended.</p>)}
                 </div>
               </Card>
             )
           })
-        ) : ( <p>There are no active auctions right now.</p> )}
+        ) : ( !loading && <p>There are no active auctions right now.</p> )}
       </div>
       {isModalOpen && <StartAuctionModal onClose={() => setIsModalOpen(false)} onStartAuction={handleStartAuction} />}
     </div>
   );
-};
-
-const StartAuctionModal = ({ onClose, onStartAuction }) => {
-    const [data, setData] = useState({ itemName: '', quantity: '', startingBid: '', minIncrement: '10', duration: '5' });
-    const handleChange = e => setData({...data, [e.target.name]: e.target.value});
-    const handleSubmit = () => {
-        const { itemName, quantity, startingBid, minIncrement, duration } = data;
-        if (!itemName.trim() || !quantity.trim() || !startingBid || !minIncrement || !duration) {
-            return alert('Please fill all fields.');
-        }
-        if (window.confirm(`Start auction for ${quantity} of ${itemName} at ₹${startingBid}?`)) {
-            onStartAuction({ ...data, startingBid: Number(startingBid), minIncrement: Number(minIncrement), duration: Number(duration) });
-        }
-    };
-    return (
-        <div className="modal-backdrop">
-            <div className="modal-content">
-                <h2>Start New Auction</h2>
-                <input name="itemName" placeholder="Produce Name" onChange={handleChange} />
-                <input name="quantity" placeholder="Quantity (e.g., 50 kg)" onChange={handleChange} />
-                <input name="startingBid" type="number" placeholder="Starting Bid (₹)" onChange={handleChange} />
-                <input name="minIncrement" type="number" value={data.minIncrement} placeholder="Min. Bid Increment (₹)" onChange={handleChange} />
-                <label>Duration (minutes)</label>
-                <input name="duration" type="number" value={data.duration} onChange={handleChange} />
-                <div className="modal-actions">
-                    <button onClick={onClose} className="btn-secondary">Cancel</button>
-                    <button onClick={handleSubmit} className="btn-primary">Confirm & Start</button>
-                </div>
-            </div>
-        </div>
-    );
 };

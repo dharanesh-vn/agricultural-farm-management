@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Ensure this is the correct path to your new User model
+const User = require('../models/User');
 
 const protect = async (req, res, next) => {
   let token;
@@ -9,31 +9,32 @@ const protect = async (req, res, next) => {
       // 1. Get token from header
       token = req.headers.authorization.split(' ')[1];
 
-      // 2. Verify token
+      // 2. Verify the token is valid and not expired
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // --- THIS IS THE CRITICAL FIX ---
-      // The decoded token contains the user's MongoDB ObjectId in the 'id' field.
-      // We must use this 'id' to find the user in the database.
-      // The .select('-password') part ensures we don't include the hashed password.
+      // 3. Find the user from the database using the ID in the token
+      // This ensures the user still exists and hasn't been deleted.
+      // We also remove the password from the object we attach to the request.
       req.user = await User.findById(decoded.id).select('-password');
-      // --- END OF FIX ---
-
+      
+      // --- CRITICAL CHECK ---
+      // If the user associated with the token couldn't be found, deny access.
       if (!req.user) {
-          res.status(401);
-          throw new Error('Not authorized, user not found');
+          return res.status(401).json({ message: 'Not authorized, user not found' });
       }
 
-      next(); // Proceed to the next step (e.g., the controller)
+      // 4. Success! Proceed to the actual route controller (e.g., getDashboardData)
+      next();
+
     } catch (error) {
-      res.status(401);
-      throw new Error('Not authorized, token failed');
+      // This catches errors like an invalid/expired token
+      return res.status(401).json({ message: 'Not authorized, token failed' });
     }
   }
 
   if (!token) {
-    res.status(401);
-    throw new Error('Not authorized, no token');
+    // This catches requests that don't have a token at all
+    return res.status(401).json({ message: 'Not authorized, no token provided' });
   }
 };
 

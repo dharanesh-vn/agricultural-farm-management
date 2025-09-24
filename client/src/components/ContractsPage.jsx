@@ -1,58 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api/api';
 import { Card } from './Card';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useSocket } from '../context/AuthContext';
 import '../styles/Dashboard.css';
 import '../styles/Contracts.css';
 
 export const ContractsPage = () => {
     const { user } = useAuth();
+    const socket = useSocket(); // Use the single, global, authenticated socket
     const [contracts, setContracts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [actionInProgress, setActionInProgress] = useState(null);
 
-    const fetchContracts = async () => {
-        try {
-            // No need to set loading true on refresh, for a smoother UX
-            const { data } = await API.get('/contracts');
-            setContracts(data);
-        } catch (err) {
-            setError('Failed to fetch your contracts.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
+        const fetchContracts = async () => {
+            try {
+                setLoading(true);
+                const { data } = await API.get('/contracts');
+                setContracts(data);
+            } catch (err) {
+                setError('Failed to fetch your contracts.');
+            } finally {
+                setLoading(false);
+            }
+        };
         fetchContracts();
-    }, []);
 
-    // --- PAYMENT SIMULATION HANDLER ---
+        // --- REAL-TIME LISTENER ---
+        const handleNewContract = (newContract) => {
+            // Only add the contract to state if the current user is involved
+            if (user?._id === newContract.farmer._id || user?._id === newContract.buyer._id) {
+                setContracts(prevContracts => [newContract, ...prevContracts]);
+                alert('A new contract has been created from a completed auction and added to your list!');
+            }
+        };
+
+        socket.on('newContract', handleNewContract);
+
+        // Clean up the listener when the component unmounts
+        return () => {
+            socket.off('newContract', handleNewContract);
+        };
+    }, [socket, user]); // Re-run effect if socket or user changes
+
     const handlePayment = async (contractId) => {
         setActionInProgress(contractId);
         try {
-            // Call the backend simulation endpoint
-            await API.post('/payments/create-checkout-session', { contractId });
-            
-            // On success, show an alert and refresh the contracts list
-            alert('Payment Successful! The farmer has been notified to ship your item.');
-            fetchContracts(); // This will re-fetch and show the new "awaiting_shipment" status
-            
+            const { data } = await API.post('/payments/create-checkout-session', { contractId });
+            window.location.href = data.url;
         } catch (err) {
             const errorMessage = err.response?.data?.message || 'An unknown error occurred.';
             alert(`Payment Error: ${errorMessage}`);
-        } finally {
             setActionInProgress(null);
         }
     };
-    
+
     const handleStatusUpdate = async (contractId, newStatus) => {
         if (!window.confirm(`Are you sure you want to mark this contract as "${newStatus}"?`)) return;
         setActionInProgress(contractId);
         try {
             await API.put(`/contracts/${contractId}/status`, { status: newStatus });
-            fetchContracts();
+            // Update local state for an instant UI response
+            setContracts(prev => prev.map(c => c._id === contractId ? { ...c, status: newStatus } : c));
         } catch (err) {
             alert('Failed to update status.');
         } finally {
@@ -67,7 +77,7 @@ export const ContractsPage = () => {
         <div>
             <header className="dashboard-header">
                 <h1>My Contracts</h1>
-                <p>Manage the lifecycle of your trades from payment to delivery.</p>
+                <p>A record of all your completed auctions and agreements.</p>
             </header>
             <div className="contracts-list">
                 {contracts.length > 0 ? (
@@ -77,7 +87,7 @@ export const ContractsPage = () => {
                         const isActionDisabled = actionInProgress === contract._id;
 
                         return (
-                            <Card key={contract._id} className="contract-card">
+                           <Card key={contract._id} className="contract-card">
                                <div className="contract-header">
                                  <h3>{contract.produce}</h3>
                                  <span className={`status-chip status-${contract.status}`}>{contract.status.replace('_', ' ')}</span>
@@ -91,7 +101,7 @@ export const ContractsPage = () => {
                                <div className="contract-actions">
                                     {isBuyer && contract.status === 'pending' && (
                                         <button className="btn-primary" onClick={() => handlePayment(contract._id)} disabled={isActionDisabled}>
-                                            {isActionDisabled ? 'Processing...' : 'Pay Now (Simulated)'}
+                                            {isActionDisabled ? 'Connecting...' : 'Pay Now with Stripe'}
                                         </button>
                                     )}
                                     {isFarmer && contract.status === 'awaiting_shipment' && (
@@ -106,7 +116,7 @@ export const ContractsPage = () => {
                                     )}
                                     {contract.status === 'completed' && (<p className="completed-text">This transaction is complete.</p>)}
                                </div>
-                            </Card>
+                           </Card>
                         )
                     })
                 ) : ( <p>You have no contracts yet.</p> )}

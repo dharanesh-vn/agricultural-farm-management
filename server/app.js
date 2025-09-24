@@ -14,13 +14,13 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 
 const app = express();
 
-// Middleware
-app.use(cors());
-// IMPORTANT: The raw body parser for the webhook is now handled in paymentRoutes.js
-// We only need the global JSON parser here.
+// --- Global Middleware ---
+// This CORS config applies to all standard API routes (but not the webhook or sockets)
+app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:3000" }));
+// This JSON parser applies to all standard API routes
 app.use(express.json());
 
-// API Routes
+// --- API Routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/contracts', contractRoutes);
@@ -32,7 +32,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/inventory', inventoryRoutes);
 
-// Error Handler (must be last)
+// Error Handler (must be the last piece of middleware)
 app.use(errorHandler);
 
 module.exports = app;

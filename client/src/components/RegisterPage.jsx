@@ -1,28 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import API from '../api/api'; // Import the centralized API helper
-import '../styles/Auth.css'; // Import the dedicated CSS for authentication pages
+import API from '../api/api';
+import '../styles/Auth.css'; // Uses the same beautiful auth styles
 
 export const RegisterPage = () => {
-    // State to hold all form data in one object
     const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        role: 'farmer', // Default role for new sign-ups
+        name: '', email: '', password: '', confirmPassword: '', role: 'farmer',
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+    
+    // --- Real-time Validation State ---
+    const [validation, setValidation] = useState({
+        isEmailValid: true,
+        passwordsMatch: true,
+        isPasswordStrong: true,
+    });
+    
     const navigate = useNavigate();
 
-    // A single handler to update the form data state
-    const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
+    // Validate password and email on every change
+    useEffect(() => {
+        const { email, password, confirmPassword } = formData;
+        const emailRegex = /\S+@\S+\.\S+/;
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+
+        setValidation({
+            isEmailValid: email === '' || emailRegex.test(email),
+            passwordsMatch: password === '' || confirmPassword === '' || password === confirmPassword,
+            isPasswordStrong: password === '' || passwordRegex.test(password),
         });
+    }, [formData]);
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = async (e) => {
@@ -30,94 +42,53 @@ export const RegisterPage = () => {
         setError('');
         setSuccess('');
 
-        // --- Client-side Validation ---
-        if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match.');
+        if (!validation.isEmailValid || !validation.passwordsMatch || !validation.isPasswordStrong) {
+            setError('Please fix the errors before submitting.');
             return;
         }
 
         setLoading(true);
-
         try {
             const { name, email, password, role } = formData;
-            // Call the real backend registration endpoint
             await API.post('/auth/register', { name, email, password, role });
-
             setSuccess('Registration successful! Redirecting to login...');
-
-            // Redirect to the login page after a short delay
-            setTimeout(() => {
-                navigate('/login');
-            }, 2000);
-
+            setTimeout(() => navigate('/login'), 2000);
         } catch (err) {
-            // Display the specific error message from the backend (e.g., "User already exists")
-            setError(err.response?.data?.message || 'Registration failed. Please try again.');
+            setError(err.response?.data?.message || 'Registration failed.');
+        } finally {
             setLoading(false);
         }
     };
+    
+    const isFormInvalid = !validation.isEmailValid || !validation.passwordsMatch || !validation.isPasswordStrong;
 
     return (
         <div className="auth-container">
             <div className="auth-card">
                 <h2>Create an Account</h2>
-                
-                {/* Display Success or Error Messages */}
                 {error && <p className="error-message">{error}</p>}
                 {success && <p className="success-message">{success}</p>}
-
                 <form onSubmit={handleSubmit}>
-                    <input
-                        name="name"
-                        type="text"
-                        placeholder="Full Name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required
-                        disabled={loading}
-                    />
-                    <input
-                        name="email"
-                        type="email"
-                        placeholder="Email Address"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                        disabled={loading}
-                    />
-                    <input
-                        name="password"
-                        type="password"
-                        placeholder="Password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required
-                        disabled={loading}
-                    />
-                    <input
-                        name="confirmPassword"
-                        type="password"
-                        placeholder="Confirm Password"
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        required
-                        disabled={loading}
-                    />
+                    <input name="name" type="text" placeholder="Full Name" onChange={handleChange} required />
+                    <input name="email" type="email" placeholder="Email Address" onChange={handleChange} required className={!validation.isEmailValid ? 'input-error' : ''} />
+                    {!validation.isEmailValid && <p className="validation-error">Please enter a valid email address.</p>}
                     
-                    {/* Role Selection Dropdown */}
-                    <select name="role" value={formData.role} onChange={handleChange} disabled={loading} required>
+                    <input name="password" type="password" placeholder="Password" onChange={handleChange} required className={!validation.isPasswordStrong ? 'input-error' : ''} />
+                    {!validation.isPasswordStrong && <p className="validation-error">Password must be 8+ characters with uppercase, lowercase, and a number.</p>}
+
+                    <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} required className={!validation.passwordsMatch ? 'input-error' : ''} />
+                    {!validation.passwordsMatch && <p className="validation-error">Passwords do not match.</p>}
+                    
+                    <select name="role" value={formData.role} onChange={handleChange} required>
                         <option value="farmer">I am a Farmer</option>
                         <option value="buyer">I am a Buyer</option>
                     </select>
 
-                    <button type="submit" disabled={loading}>
-                        {loading ? 'Creating Account...' : 'Register'}
+                    <button type="submit" disabled={loading || isFormInvalid}>
+                        {loading ? 'Registering...' : 'Create Account'}
                     </button>
                 </form>
-                
-                <p>
-                    Already have an account? <Link to="/login">Sign In</Link>
-                </p>
+                <p>Already have an account? <Link to="/login">Sign In</Link></p>
             </div>
         </div>
     );

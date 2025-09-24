@@ -1,12 +1,14 @@
+/* --- Main Container for both Login and Register pages --- */
 .auth-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #f4f7fc;
+  background-color: #f4f7fc; /* Light, clean background */
   padding: 1rem;
 }
 
+/* --- The main card element that holds the form --- */
 .auth-card {
   background: white;
   padding: 2.5rem;
@@ -18,50 +20,76 @@
 }
 
 .auth-card h2 {
+  margin-top: 0;
   margin-bottom: 2rem;
-  color: #1e293b;
+  color: #1e293b; /* Dark slate text */
   font-size: 1.75rem;
+  font-weight: 700;
 }
 
+/* --- Styling for all form inputs and select dropdowns --- */
 .auth-card input,
 .auth-card select {
   width: 100%;
   padding: 0.85rem;
-  margin-bottom: 1.25rem;
-  border: 1px solid #cbd5e1;
+  margin-bottom: 0.25rem; /* Reduced margin for validation messages */
+  border: 1px solid #cbd5e1; /* Light gray border */
   border-radius: 8px;
   font-size: 1rem;
-  box-sizing: border-box; /* Important for consistent sizing */
+  box-sizing: border-box; /* Ensures padding doesn't affect width */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* --- Styling for when an input is focused (clicked on) --- */
 .auth-card input:focus,
 .auth-card select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #3b82f6; /* Blue highlight */
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
+/* --- NEW STYLES for Real-Time Validation Feedback --- */
+.input-error {
+    border-color: #ef4444 !important; /* Red border for invalid fields */
+}
+.input-error:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+.validation-error {
+    color: #ef4444;
+    font-size: 0.8rem;
+    text-align: left;
+    margin: 0.25rem 0 1rem 0.25rem; /* Margin below the message */
+    height: 1rem; /* Reserve space to prevent layout shift */
+}
+/* --- END OF NEW STYLES --- */
+
+
+/* --- Main action button style --- */
 .auth-card button {
   width: 100%;
   padding: 0.85rem;
+  margin-top: 1rem; /* Margin above the button */
   border: none;
   border-radius: 8px;
   background-color: #3b82f6;
   color: white;
   font-weight: 600;
+  font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
 .auth-card button:hover {
-    background-color: #2563eb;
+    background-color: #2563eb; /* Darker blue on hover */
 }
 
 .auth-card button:disabled {
-    background-color: #9ca3af;
+    background-color: #9ca3af; /* Gray when disabled */
     cursor: not-allowed;
 }
 
+/* --- Link styling for "Already have an account?" --- */
 .auth-card p {
   margin-top: 1.5rem;
   color: #475569;
@@ -72,21 +100,28 @@
     text-decoration: none;
     font-weight: 500;
 }
-
-.error-message {
-  color: #ef4444;
-  background-color: #fee2e2;
-  padding: 0.75rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  text-align: center;
+.auth-card p a:hover {
+    text-decoration: underline;
 }
 
-.success-message {
-  color: #166534;
-  background-color: #dcfce7;
+/* --- General error message box (e.g., for "User already exists") --- */
+.error-message {
+  color: #b91c1c; /* Darker red text */
+  background-color: #fee2e2; /* Light red background */
   padding: 0.75rem;
   border-radius: 8px;
   margin-bottom: 1rem;
   text-align: center;
+  font-size: 0.9rem;
+}
+
+/* --- Success message box (for "Registration successful!") --- */
+.success-message {
+  color: #166534; /* Darker green text */
+  background-color: #dcfce7; /* Light green background */
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
 }

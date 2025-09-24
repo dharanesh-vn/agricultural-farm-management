@@ -1,3 +1,42 @@
+.dashboard-header.with-tabs {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 1rem;
+}
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.view-tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+.view-tabs button {
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: transparent;
+  border-radius: 6px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.view-tabs button:hover {
+  background-color: #f1f5f9;
+}
+.view-tabs button.active {
+  background-color: #3b82f6;
+  color: white;
+}
+.winner-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #166534;
+  background-color: #dcfce7;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+}
 .auction-grid-redesigned {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));

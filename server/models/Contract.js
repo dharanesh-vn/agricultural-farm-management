@@ -5,11 +5,7 @@ const ContractSchema = new mongoose.Schema({
   produce: { type: String, required: true },
   quantity: { type: Number, required: true },
   price: { type: Number, required: true },
-  paymentStatus: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' }, // <-- NEW
-  status: { 
-    type: String, 
-    enum: ['pending', 'awaiting_shipment', 'shipped', 'completed', 'cancelled'], 
-    default: 'pending' 
-  },
+  paymentStatus: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' },
+  status: { type: String, enum: ['pending', 'awaiting_shipment', 'shipped', 'completed', 'cancelled'], default: 'pending' },
 }, { timestamps: true });
 module.exports = mongoose.model('Contract', ContractSchema);

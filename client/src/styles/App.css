@@ -1,11 +1,11 @@
-/* --- Redesigned App Layout --- */
+/* --- Main Application Layout --- */
 .app-layout-redesigned {
   display: flex;
 }
 
 .main-content-wrapper {
   flex-grow: 1;
-  margin-left: 260px; /* Same width as the new sidebar */
+  margin-left: 260px; /* Must be the same width as the sidebar */
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -14,14 +14,7 @@
 .content-area {
   flex-grow: 1;
   padding: 1.5rem 2rem;
-  overflow-y: auto; /* This makes only the content area scrollable */
-  background-color: #f1f5f9; /* Light gray background */
+  overflow-y: auto; /* This makes only the main content area scrollable */
+  background-color: #f1f5f9; /* Light gray content background */
 }
 
-/* Ensure body has no margin */
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-}

@@ -1,23 +1,18 @@
-/* Filename: src/styles/Inventory.css */
-
 .inventory-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 1rem;
 }
-
 .inventory-table th, .inventory-table td {
   padding: 0.75rem 1rem;
   text-align: left;
   border-bottom: 1px solid #e2e8f0;
 }
-
 .inventory-table th {
   background-color: #f8fafc;
   font-weight: 600;
   color: #475569;
 }
-
 .inventory-table tbody tr:hover {
   background-color: #f1f5f9;
 }

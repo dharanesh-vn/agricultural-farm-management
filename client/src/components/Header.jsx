@@ -1,5 +1,3 @@
-// Filename: src/components/Header.jsx
-
 import React from 'react';
 import { FaSearch, FaBell } from 'react-icons/fa';
 import '../styles/Header.css';
@@ -9,7 +7,14 @@ export const Header = () => {
     <header className="header">
       <div className="header-search">
         <FaSearch className="search-icon" />
-        <input type="text" placeholder="Search..." />
+        {/* --- THIS IS THE FIX --- */}
+        <input
+          id="header-search"
+          name="header-search"
+          type="text"
+          placeholder="Search..."
+        />
+        {/* --- END OF FIX --- */}
       </div>
       <div className="header-profile">
         <FaBell className="notification-icon" />

@@ -8,7 +8,7 @@ import { Weather } from './components/Weather';
 import { LoginPage } from './components/LoginPage';
 import { RegisterPage } from './components/RegisterPage';
 import { HomePage } from './components/HomePage';
-import { ContractsPage } from './components/ContractsPage'; // <-- Verified Import
+import { ContractsPage } from './components/ContractsPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
@@ -24,23 +24,17 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-
-          {/* Protected Application Wrapper */}
           <Route path="/app" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Navigate to="dashboard" replace />} /> 
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="live-auction" element={<LiveAuction />} />
-            <Route path="contracts" element={<ContractsPage />} /> {/* <-- Verified Route */}
-            {/* Farmer-only routes */}
+            <Route path="contracts" element={<ContractsPage />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="weather" element={<Weather />} />
           </Route>
-          
-          {/* Fallback for any other path */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
